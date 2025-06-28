@@ -27,7 +27,7 @@ def send_email(sender_email, sender_password, row, default_message, default_link
     msg["To"] = row["Email"]
     msg["Subject"] = row.get("Subject", "No Subject")
 
-    # 🔁 Fallback for missing or empty Message Template
+    # Message fallback
     template = row.get("Message Template")
     if pd.isna(template) or not str(template).strip():
         template = default_message
@@ -37,17 +37,28 @@ def send_email(sender_email, sender_password, row, default_message, default_link
     except Exception:
         return False, "Template format error"
 
-    # 🔗 Optional link support
+    # Link fallback
     link = row.get("Link")
     if pd.isna(link) or not str(link).strip():
         link = default_link.strip()
     if link:
         message += f'<br><br><a href="{link}" target="_blank">🔗 Open Link</a>'
 
+    # 📍 Add Dynamic Google Maps Directions Link
+    venue_address = "Academic Block, INDIAN INSTITUTE OF INFORMATION TECHNOLOGY, Vengadamangalam, Tamil Nadu 600127"
+    maps_link = f"https://www.google.com/maps/dir/?api=1&destination={venue_address.replace(' ', '+')}"
+    message += (
+        '<br><br>'
+        f'<a href="{maps_link}" target="_blank" style="text-decoration:none;font-weight:bold;color:#3366cc;">'
+        '<img src="https://cdn-icons-png.flaticon.com/512/684/684908.png" '
+        'width="16" height="16" style="vertical-align:middle;margin-right:6px;">'
+        'Get Directions to Venue</a>'
+    )
+
     msg.set_content(message)
     msg.add_alternative(f"<html><body>{message.replace(chr(10), '<br>')}</body></html>", subtype='html')
 
-    # 📎 Attachments
+    # Attachment fallback
     attachment_path = None
     if pd.notna(row.get("Attachment")) and str(row["Attachment"]).strip():
         attachment_path = os.path.join(os.getcwd(), str(row["Attachment"]).strip())
@@ -65,7 +76,6 @@ def send_email(sender_email, sender_password, row, default_message, default_link
         except Exception as e:
             return False, f"Attachment error: {e}"
 
-    # 📤 Send email
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
             smtp.login(sender_email, sender_password)
@@ -76,28 +86,24 @@ def send_email(sender_email, sender_password, row, default_message, default_link
 
 # === UI Starts ===
 st.title("🕊️ Pegion – Smart Email Sender")
-st.markdown("Deliver personalized emails from your Excel sheet like a true digital postman! 🧾")
+st.markdown("Deliver personalized emails from your Excel sheet with a sweet Pegion! 🧾")
 
-# 🔐 Credentials
-creds = load_credentials()
-with st.expander("🔐 Email Credentials", expanded=(not creds["email"] or not creds["password"])):
-    with st.form("credentials_form"):
-        input_email = st.text_input("Your Gmail Address", value=creds["email"])
-        input_password = st.text_input("App Password", type="password", value=creds["password"])
-        save = st.form_submit_button("✅ Save & Continue")
-        if save:
-            save_credentials(input_email, input_password)
-            st.success("Credentials saved! Please reload the app.")
-
-if st.button("❌ Clear Saved Credentials"):
-    if os.path.exists(CREDENTIALS_FILE):
-        os.remove(CREDENTIALS_FILE)
-        st.success("Credentials cleared. Please reload the app.")
-
+# === Credentials Handling ===
 creds = load_credentials()
 sender_email = creds["email"]
 app_password = creds["password"]
 
+if not sender_email or not app_password:
+    with st.expander("🔐 Email Credentials"):
+        with st.form("credentials_form"):
+            input_email = st.text_input("Your Gmail Address")
+            input_password = st.text_input("App Password", type="password")
+            save = st.form_submit_button("✅ Save & Continue")
+            if save:
+                save_credentials(input_email, input_password)
+                st.success("Credentials saved! Please reload the app to continue.")
+
+# === Main ===
 if sender_email and app_password:
     st.markdown("### 📁 Upload Excel File")
     uploaded_file = st.file_uploader("Choose an Excel (.xlsx) file", type=["xlsx"])
@@ -113,7 +119,6 @@ if sender_email and app_password:
                 st.success("Excel loaded successfully!")
                 st.dataframe(df)
 
-                # ✅ Ensure fallback column exists
                 if 'Message Template' not in df.columns:
                     df['Message Template'] = None
 
@@ -166,4 +171,4 @@ else:
     st.info("🔐 Please enter and save your credentials to proceed.")
 
 st.markdown("---")
-st.markdown("Crafted with ❤️ by Bharat | Powered by Pegion 🕊️", unsafe_allow_html=True)
+st.markdown("Crafted with ❤️ by Bharat | Powered by Pegion 💌", unsafe_allow_html=True)
